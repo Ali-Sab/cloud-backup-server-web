@@ -1,0 +1,12 @@
+{
+  "name": "Cloud Backup",
+  "short_name": "Cloud Backup",
+  "description": "Mobile backup health and cloud file access.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f1",
+  "theme_color": "#f5f6f1",
+  "icons": [
+    { "src": "/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}
