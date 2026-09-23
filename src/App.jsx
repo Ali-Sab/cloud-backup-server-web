@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, API_URL } from './api';
 import './styles.css';
 
+const TEST_ACCOUNT = { email: 'user@email.com', password: 'password' };
+
 const iconPaths = {
   home: 'M3 10.5 12 3l9 7.5v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z',
   files: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-11Z',
@@ -73,6 +75,10 @@ function AuthScreen({ onAuthenticated }) {
     setBusy(true);
     setError('');
     try {
+      if (mode === 'login' && email.trim().toLowerCase() === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password) {
+        onAuthenticated({ email: TEST_ACCOUNT.email, mock: true });
+        return;
+      }
       const result = mode === 'login' ? await api.login(email, password) : await api.register(email, password);
       onAuthenticated(result?.user || { email });
     } catch (requestError) {
@@ -80,6 +86,14 @@ function AuthScreen({ onAuthenticated }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function useDemoAccount() {
+    setEmail(TEST_ACCOUNT.email);
+    setPassword(TEST_ACCOUNT.password);
+    setError('');
+    setMode('login');
+    onAuthenticated({ email: TEST_ACCOUNT.email, mock: true });
   }
 
   return <div className="auth-page">
@@ -95,8 +109,10 @@ function AuthScreen({ onAuthenticated }) {
       <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={6} placeholder="At least 6 characters" /></label>
       {error && <div className="form-error">{error}</div>}
       <button className="primary-button wide" disabled={busy}>{busy ? 'Connecting…' : mode === 'login' ? 'Sign in' : 'Create account'} <Icon name="arrow" size={18} /></button>
+      {mode === 'login' && <button type="button" className="demo-button" onClick={useDemoAccount}>Use demo account</button>}
       <button type="button" className="text-button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'New here? Create an account' : 'Already have an account? Sign in'}</button>
     </form>
+    <p className="mock-note">Demo login: user@email.com / password. This stays local to the PWA.</p>
     <p className="auth-endpoint">Connected to <strong>{API_URL}</strong></p>
   </div>;
 }
@@ -152,10 +168,35 @@ function ActivityView({ activity, folders, loading, error, onRetry }) {
   return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Backup history</p><h1>Activity</h1></div><span className="section-count">{activity.length} recent</span></div><div className="folder-select-wrap"><label htmlFor="activity-filter">Filter</label><select id="activity-filter" value={folderId} onChange={(event) => setFolderId(event.target.value)}><option value="">All folders</option>{folders.map((folder) => <option value={folder.id} key={folder.id}>{folder.name || folder.path}</option>)}</select></div>{error && <InlineError message={error} onRetry={onRetry} />}{loading ? <LoadingState label="Loading activity…" /> : visible.length ? <div className="activity-list">{visible.map((item, index) => <div className="activity-row" key={`${item.id}-${index}`}><span className="activity-icon"><Icon name="shield" size={17} /></span><div className="activity-info"><strong>{(item.relative_path || 'File backup').split('/').pop()}</strong><span>{item.folder_name || item.folder_path || 'Cloud folder'} · v{item.version || 1}</span></div><div className="activity-meta"><strong>{formatSize(item.size)}</strong><span>{relativeTime(item.backed_up_at)}</span></div></div>)}</div> : <EmptyState title="No activity yet" copy="Completed backups will appear here as your files are protected." />}</div>;
 }
 
-function SettingsView({ user, onSignOut }) {
+function SettingsView({ user, onSignOut, onManageAccount }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloud-backup-theme') || 'light');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('cloud-backup-theme', theme); }, [theme]);
-  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Account changes, automatic backups, and local restore are not part of this read-only PWA phase.</p></div>;
+  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onManageAccount}>Manage account</button><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Account management is currently a local mock and does not change backend data.</p></div>;
+}
+
+function AccountManagementPanel({ user, onClose }) {
+  const [action, setAction] = useState('overview');
+  const [submitted, setSubmitted] = useState(false);
+
+  function chooseAction(nextAction) {
+    setAction(nextAction);
+    setSubmitted(false);
+  }
+
+  function submit(event) {
+    event.preventDefault();
+    setSubmitted(true);
+  }
+
+  const actionDetails = {
+    reset: { title: 'Reset password', copy: 'Send a mock reset link to your account email.' },
+    email: { title: 'Change email', copy: 'Update the email address used for this mock account.' },
+    password: { title: 'Change password', copy: 'Set a new password for this mock account.' },
+    delete: { title: 'Delete account', copy: 'This mock confirmation does not delete any data.' },
+  };
+  const details = actionDetails[action];
+
+  return <div className="modal-backdrop" onClick={onClose}><div className="profile-panel account-panel" onClick={(event) => event.stopPropagation()}><div className="panel-handle" /><div className="profile-header"><div className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</div><div><p className="eyebrow">Account management</p><h2>{user?.email || 'Cloud Backup user'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close account management"><Icon name="close" size={19} /></button></div>{action === 'overview' ? <div className="account-actions"><button className="account-action" onClick={() => chooseAction('reset')}><strong>Reset password</strong><span>Request a mock password reset link</span><Icon name="chevron" size={17} /></button><button className="account-action" onClick={() => chooseAction('email')}><strong>Change email</strong><span>Preview the email change flow</span><Icon name="chevron" size={17} /></button><button className="account-action" onClick={() => chooseAction('password')}><strong>Change password</strong><span>Preview the password change flow</span><Icon name="chevron" size={17} /></button><button className="account-action danger" onClick={() => chooseAction('delete')}><strong>Delete account</strong><span>Preview the deletion confirmation</span><Icon name="chevron" size={17} /></button></div> : <div className="account-form-wrap"><button className="back-button" onClick={() => chooseAction('overview')}>Back to account options</button><h3>{details.title}</h3><p>{details.copy}</p>{submitted ? <div className="account-success"><strong>Mock action complete</strong><span>No account data was changed.</span><button className="secondary-button wide" onClick={() => chooseAction('overview')}>Done</button></div> : <form className="account-form" onSubmit={submit}>{action === 'reset' && <label>Email address<input type="email" value={user?.email || ''} readOnly /></label>}{action === 'email' && <label>New email address<input type="email" placeholder="new@example.com" required /></label>}{action === 'password' && <><label>Current password<input type="password" required /></label><label>New password<input type="password" minLength="6" required /></label></>}{action === 'delete' && <label>Type DELETE to confirm<input pattern="DELETE" placeholder="DELETE" required /></label>}<button className={`primary-button wide ${action === 'delete' ? 'danger-button' : ''}`}>{action === 'reset' ? 'Send reset link' : action === 'email' ? 'Save email' : action === 'password' ? 'Save password' : 'Confirm deletion'}</button></form>}</div>}</div></div>;
 }
 
 function ProfilePanel({ user, onClose, onSignOut }) {
@@ -188,6 +229,7 @@ export default function App() {
   const [dataError, setDataError] = useState('');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [accountManagementOpen, setAccountManagementOpen] = useState(false);
 
   async function loadData() {
     setLoadingData(true);
@@ -217,5 +259,5 @@ export default function App() {
   if (session.loading) return <div className="splash"><span className="brand-mark"><Icon name="shield" size={22} /></span><span>Loading Cloud Backup</span></div>;
   if (!session.user) return <AuthScreen onAuthenticated={(user) => setSession({ loading: false, user, error: '' })} />;
 
-  return <div className="app-shell"><AppHeader user={session.user} onProfile={() => setProfileOpen(true)} /><main>{view === 'home' && <HomeView folders={folders} activity={activity} loading={loadingData} error={dataError} onOpenFolder={(folder) => { setSelectedFolder(folder); setView('files'); }} onRetry={loadData} />}{view === 'files' && <FilesView folders={folders} selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />}{view === 'activity' && <ActivityView activity={activity} folders={folders} loading={loadingData} error={dataError} onRetry={loadData} />}{view === 'settings' && <SettingsView user={session.user} onSignOut={signOut} />}</main><BottomNav activeView={view} onChange={setView} />{profileOpen && <ProfilePanel user={session.user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />}</div>;
+  return <div className="app-shell"><AppHeader user={session.user} onProfile={() => setProfileOpen(true)} /><main>{view === 'home' && <HomeView folders={folders} activity={activity} loading={loadingData} error={dataError} onOpenFolder={(folder) => { setSelectedFolder(folder); setView('files'); }} onRetry={loadData} />}{view === 'files' && <FilesView folders={folders} selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />}{view === 'activity' && <ActivityView activity={activity} folders={folders} loading={loadingData} error={dataError} onRetry={loadData} />}{view === 'settings' && <SettingsView user={session.user} onSignOut={signOut} onManageAccount={() => setAccountManagementOpen(true)} />}</main><BottomNav activeView={view} onChange={setView} />{profileOpen && <ProfilePanel user={session.user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />}{accountManagementOpen && <AccountManagementPanel user={session.user} onClose={() => setAccountManagementOpen(false)} />}</div>;
 }
