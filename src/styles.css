@@ -91,7 +91,7 @@ main { max-width: 680px; margin: 0 auto; }
 .status-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: rgba(255,255,255,.13); }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: .7rem; color: #c8f0d7; border: 1px solid rgba(220, 255, 231, .25); background: rgba(255,255,255,.08); border-radius: 20px; padding: 7px 10px; }
 .status-label { margin: 21px 0 5px; color: #b7d8c3; font-size: .74rem; }
-.status-card h2 { margin-bottom: 7px; font-size: 1.48rem; }
+.status-card h2 { margin: 0 0 7px; text-align: left; font-size: 1.48rem; }
 .status-subtitle { color: #c3dec9; font-size: .81rem; margin-bottom: 22px; }
 .status-metrics { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgba(255,255,255,.16); padding-top: 17px; }
 .status-metrics div { display: grid; gap: 4px; border-right: 1px solid rgba(255,255,255,.16); padding-left: 14px; }
