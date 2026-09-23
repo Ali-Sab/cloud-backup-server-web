@@ -129,7 +129,7 @@ function StatusCard({ folders, activity }) {
   return <section className="status-card">
     <div className="status-card-top"><span className="status-icon"><Icon name="shield" size={22} /></span><span className="status-pill"><span className="status-dot" /> Connected</span></div>
     <p className="status-label">Backup status</p>
-    <h2>{folders.length ? 'Your backups are ready' : 'No folders yet'}</h2>
+    <h2 style={{ marginLeft: 'auto' }}>{folders.length ? 'Your backups are ready' : 'No folders yet'}</h2>
     <p className="status-subtitle">{latest ? `Last backup ${relativeTime(latest)}.` : 'Add a folder from the desktop client to start backing up.'}</p>
     <div className="status-metrics"><div><strong>{folders.length}</strong><span>Folders</span></div><div><strong>{files.toLocaleString()}</strong><span>Files</span></div><div><strong>{formatSize(size)}</strong><span>Protected</span></div></div>
     {activity?.length > 0 && <div className="status-foot"><span>Latest activity</span><strong>{relativeTime(activity[0].backed_up_at)}</strong></div>}
