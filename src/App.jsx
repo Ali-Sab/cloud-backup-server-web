@@ -1,15 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, API_URL } from './api';
 import './styles.css';
-
-const TEST_ACCOUNT = { email: 'user@email.com', password: 'password' };
-const DEMO_FOLDER = { id: 'demo-folder', name: 'Documents', path: '/Documents', file_count: 3, total_size: 4259840, last_backup_at: new Date(Date.now() - 1000 * 60 * 23).toISOString() };
-const DEMO_FILES = [
-  { relative_path: 'Reports/Quarterly report.pdf', size: 2457600 },
-  { relative_path: 'Photos/Team photo.jpg', size: 1782579 },
-  { relative_path: 'Notes/Readme.txt', size: 19661 },
-];
-const DEMO_ACTIVITY = DEMO_FILES.map((file, index) => ({ id: `demo-activity-${index}`, watched_path_id: DEMO_FOLDER.id, relative_path: file.relative_path, folder_name: DEMO_FOLDER.name, version: 1, size: file.size, backed_up_at: new Date(Date.now() - 1000 * 60 * (23 + index * 18)).toISOString() }));
 
 const iconPaths = {
   home: 'M3 10.5 12 3l9 7.5v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z',
@@ -82,10 +73,6 @@ function AuthScreen({ onAuthenticated }) {
     setBusy(true);
     setError('');
     try {
-      if (mode === 'login' && email.trim().toLowerCase() === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password) {
-        onAuthenticated({ email: TEST_ACCOUNT.email, mock: true });
-        return;
-      }
       const result = mode === 'login' ? await api.login(email, password) : await api.register(email, password);
       onAuthenticated(result?.user || { email });
     } catch (requestError) {
@@ -93,14 +80,6 @@ function AuthScreen({ onAuthenticated }) {
     } finally {
       setBusy(false);
     }
-  }
-
-  function useDemoAccount() {
-    setEmail(TEST_ACCOUNT.email);
-    setPassword(TEST_ACCOUNT.password);
-    setError('');
-    setMode('login');
-    onAuthenticated({ email: TEST_ACCOUNT.email, mock: true });
   }
 
   return <div className="auth-page">
@@ -116,11 +95,9 @@ function AuthScreen({ onAuthenticated }) {
       <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={6} placeholder="At least 6 characters" /></label>
       {error && <div className="form-error">{error}</div>}
       <button className="primary-button wide" disabled={busy}>{busy ? 'Connecting…' : mode === 'login' ? 'Sign in' : 'Create account'} <Icon name="arrow" size={18} /></button>
-      {mode === 'login' && <button type="button" className="demo-button" onClick={useDemoAccount}>Use demo account</button>}
       <button type="button" className="text-button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'New here? Create an account' : 'Already have an account? Sign in'}</button>
     </form>
-    <p className="mock-note">Demo login: user@email.com / password. This stays local to the PWA.</p>
-    <p className="auth-endpoint">Connected to <strong>{API_URL}</strong></p>
+    <p className="auth-endpoint">API endpoint: <strong>{API_URL || 'same origin (configure VITE_API_URL for a separate API)'}</strong></p>
   </div>;
 }
 
@@ -152,7 +129,7 @@ function HomeView({ folders, activity, loading, error, onOpenFolder, onRetry }) 
   return <div className="view home-view"><div className="page-heading"><div><p className="eyebrow">Overview</p><h1>Good to see you</h1></div><span className="live-indicator"><span className="status-dot" /> Live</span></div>{error && <InlineError message={error} onRetry={onRetry} />}{loading ? <LoadingState label="Loading your backup health…" /> : <><StatusCard folders={folders} activity={activity} /><div className="section-heading"><div><p className="eyebrow">Your library</p><h2>Folders</h2></div><span className="section-count">{folders.length} total</span></div>{folders.length ? <div className="folder-list">{folders.map((folder) => <FolderCard key={folder.id ?? folder.path} folder={folder} onOpen={onOpenFolder} />)}</div> : <EmptyState title="No folders connected" copy="Folders are added from the desktop client. Once connected, their backup health will appear here." />}</>}</div>;
 }
 
-function FilesView({ folders, selectedFolder, onSelectFolder, mockMode }) {
+function FilesView({ folders, selectedFolder, onSelectFolder }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -160,16 +137,10 @@ function FilesView({ folders, selectedFolder, onSelectFolder, mockMode }) {
 
   useEffect(() => {
     if (!selectedFolder) return;
-    if (mockMode) {
-      setFiles(DEMO_FILES);
-      setError('');
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError('');
     api.folderFiles(selectedFolder.id).then((payload) => setFiles(extractList(payload, 'files'))).catch((requestError) => setError(requestError.message)).finally(() => setLoading(false));
-  }, [selectedFolder, mockMode]);
+  }, [selectedFolder]);
 
   const filteredFiles = useMemo(() => files.filter((file) => (file.relative_path || file.relativePath || file.name || '').toLowerCase().includes(query.toLowerCase())), [files, query]);
   return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Cloud files</p><h1>Files</h1></div><span className="read-only-tag">Read only</span></div>{folders.length > 0 && <div className="folder-select-wrap"><label htmlFor="folder-select">Folder</label><select id="folder-select" value={selectedFolder?.id ?? ''} onChange={(event) => onSelectFolder(folders.find((folder) => String(folder.id) === event.target.value))}>{folders.map((folder) => <option value={folder.id} key={folder.id}>{folder.name || folder.path}</option>)}</select></div>}{!selectedFolder ? <EmptyState title="No cloud folders" copy="Once a folder is connected, its protected files will be available here." /> : <><div className="search-box"><Icon name="search" size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" /></div>{error && <InlineError message={error} onRetry={() => onSelectFolder({ ...selectedFolder })} />}{loading ? <LoadingState label="Loading files…" /> : filteredFiles.length ? <div className="file-list">{filteredFiles.map((file, index) => <div className="file-row" key={`${file.relative_path || file.relativePath}-${index}`}><span className="file-type"><Icon name={file.isDirectory ? 'files' : 'files'} size={18} /></span><div className="file-info"><strong>{(file.relative_path || file.relativePath || file.name || 'Untitled').split('/').pop()}</strong><span>{file.relative_path || file.relativePath || 'Protected file'}</span></div><div className="file-meta">{file.isDirectory ? 'Folder' : formatSize(file.size)}<Icon name="chevron" size={15} /></div></div>)}</div> : <EmptyState title="No files found" copy={query ? 'Try another search term.' : 'This folder has no synced files yet.'} />}</>}</div>;
@@ -181,67 +152,10 @@ function ActivityView({ activity, folders, loading, error, onRetry }) {
   return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Backup history</p><h1>Activity</h1></div><span className="section-count">{activity.length} recent</span></div><div className="folder-select-wrap"><label htmlFor="activity-filter">Filter</label><select id="activity-filter" value={folderId} onChange={(event) => setFolderId(event.target.value)}><option value="">All folders</option>{folders.map((folder) => <option value={folder.id} key={folder.id}>{folder.name || folder.path}</option>)}</select></div>{error && <InlineError message={error} onRetry={onRetry} />}{loading ? <LoadingState label="Loading activity…" /> : visible.length ? <div className="activity-list">{visible.map((item, index) => <div className="activity-row" key={`${item.id}-${index}`}><span className="activity-icon"><Icon name="shield" size={17} /></span><div className="activity-info"><strong>{(item.relative_path || 'File backup').split('/').pop()}</strong><span>{item.folder_name || item.folder_path || 'Cloud folder'} · v{item.version || 1}</span></div><div className="activity-meta"><strong>{formatSize(item.size)}</strong><span>{relativeTime(item.backed_up_at)}</span></div></div>)}</div> : <EmptyState title="No activity yet" copy="Completed backups will appear here as your files are protected." />}</div>;
 }
 
-function SettingsView({ user, onSignOut, onManageAccount }) {
+function SettingsView({ user, onSignOut }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloud-backup-theme') || 'light');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('cloud-backup-theme', theme); }, [theme]);
-  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onManageAccount}>Manage account</button><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Account management is currently a local mock and does not change backend data.</p></div>;
-}
-
-function AccountManagementPanel({ user, onClose }) {
-  const panelRef = useRef(null);
-  const [action, setAction] = useState('overview');
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    const previousFocus = document.activeElement;
-    const panel = panelRef.current;
-    panel?.focus();
-
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab' || !panel) return;
-      const focusable = [...panel.querySelectorAll('button:not([disabled]), input:not([disabled])')];
-      if (!focusable.length) {
-        event.preventDefault();
-        panel.focus();
-      } else if (event.shiftKey && (document.activeElement === focusable[0] || document.activeElement === panel)) {
-        event.preventDefault();
-        focusable.at(-1).focus();
-      } else if (!event.shiftKey && (document.activeElement === focusable.at(-1) || document.activeElement === panel)) {
-        event.preventDefault();
-        focusable[0].focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      previousFocus?.focus();
-    };
-  }, [onClose]);
-
-  function chooseAction(nextAction) {
-    setAction(nextAction);
-    setSubmitted(false);
-  }
-
-  function submit(event) {
-    event.preventDefault();
-    setSubmitted(true);
-  }
-
-  const actionDetails = {
-    reset: { title: 'Reset password', copy: 'Send a mock reset link to your account email.' },
-    email: { title: 'Change email', copy: 'Update the email address used for this mock account.' },
-    password: { title: 'Change password', copy: 'Set a new password for this mock account.' },
-    delete: { title: 'Delete account', copy: 'This mock confirmation does not delete any data.' },
-  };
-  const details = actionDetails[action];
-
-  return <div className="modal-backdrop" onClick={onClose}><div ref={panelRef} className="profile-panel account-panel" role="dialog" aria-modal="true" aria-labelledby="account-management-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}><div className="panel-handle" /><div className="profile-header"><div className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</div><div><p className="eyebrow">Account management</p><h2 id="account-management-title">{user?.email || 'Cloud Backup user'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close account management"><Icon name="close" size={19} /></button></div>{action === 'overview' ? <div className="account-actions"><button className="account-action" onClick={() => chooseAction('reset')}><strong>Reset password</strong><span>Request a mock password reset link</span><Icon name="chevron" size={17} /></button><button className="account-action" onClick={() => chooseAction('email')}><strong>Change email</strong><span>Preview the email change flow</span><Icon name="chevron" size={17} /></button><button className="account-action" onClick={() => chooseAction('password')}><strong>Change password</strong><span>Preview the password change flow</span><Icon name="chevron" size={17} /></button><button className="account-action danger" onClick={() => chooseAction('delete')}><strong>Delete account</strong><span>Preview the deletion confirmation</span><Icon name="chevron" size={17} /></button></div> : <div className="account-form-wrap"><button className="back-button" onClick={() => chooseAction('overview')}>Back to account options</button><h3>{details.title}</h3><p>{details.copy}</p>{submitted ? <div className="account-success"><strong>Mock action complete</strong><span>No account data was changed.</span><button className="secondary-button wide" onClick={() => chooseAction('overview')}>Done</button></div> : <form className="account-form" onSubmit={submit}>{action === 'reset' && <label>Email address<input type="email" value={user?.email || ''} readOnly /></label>}{action === 'email' && <label>New email address<input type="email" placeholder="new@example.com" required /></label>}{action === 'password' && <><label>Current password<input type="password" required /></label><label>New password<input type="password" minLength="6" required /></label></>}{action === 'delete' && <label>Type DELETE to confirm<input pattern="DELETE" placeholder="DELETE" required /></label>}<button className={`primary-button wide ${action === 'delete' ? 'danger-button' : ''}`}>{action === 'reset' ? 'Send reset link' : action === 'email' ? 'Save email' : action === 'password' ? 'Save password' : 'Confirm deletion'}</button></form>}</div>}</div></div>;
+  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL || 'Same origin (configure VITE_API_URL for a separate API)'}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Email and password changes require account-management endpoints on the API server.</p></div>;
 }
 
 function ProfilePanel({ user, onClose, onSignOut }) {
@@ -274,7 +188,6 @@ export default function App() {
   const [dataError, setDataError] = useState('');
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [accountManagementOpen, setAccountManagementOpen] = useState(false);
 
   async function loadData() {
     setLoadingData(true);
@@ -293,21 +206,10 @@ export default function App() {
   }
 
   useEffect(() => { api.session().then((payload) => setSession({ loading: false, user: payload?.user || null, error: '' })).catch((requestError) => setSession({ loading: false, user: null, error: requestError.message })); }, []);
-  useEffect(() => {
-    if (!session.user) return;
-    if (session.user.mock) {
-      setFolders([DEMO_FOLDER]);
-      setActivity(DEMO_ACTIVITY);
-      setSelectedFolder(DEMO_FOLDER);
-      setDataError('');
-      setLoadingData(false);
-      return;
-    }
-    loadData();
-  }, [session.user]);
+  useEffect(() => { if (session.user) loadData(); }, [session.user]);
 
   async function signOut() {
-    if (!session.user?.mock) await api.logout().catch(() => {});
+    await api.logout().catch(() => {});
     setProfileOpen(false);
     setSession({ loading: false, user: null, error: '' });
   }
@@ -315,5 +217,5 @@ export default function App() {
   if (session.loading) return <div className="splash"><span className="brand-mark"><Icon name="shield" size={22} /></span><span>Loading Cloud Backup</span></div>;
   if (!session.user) return <AuthScreen onAuthenticated={(user) => setSession({ loading: false, user, error: '' })} />;
 
-  return <div className="app-shell"><AppHeader user={session.user} onProfile={() => setProfileOpen(true)} /><main>{view === 'home' && <HomeView folders={folders} activity={activity} loading={loadingData} error={dataError} onOpenFolder={(folder) => { setSelectedFolder(folder); setView('files'); }} onRetry={loadData} />}{view === 'files' && <FilesView folders={folders} selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} mockMode={session.user.mock} />}{view === 'activity' && <ActivityView activity={activity} folders={folders} loading={loadingData} error={dataError} onRetry={loadData} />}{view === 'settings' && <SettingsView user={session.user} onSignOut={signOut} onManageAccount={() => setAccountManagementOpen(true)} />}</main><BottomNav activeView={view} onChange={setView} />{profileOpen && <ProfilePanel user={session.user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />}{accountManagementOpen && <AccountManagementPanel user={session.user} onClose={() => setAccountManagementOpen(false)} />}</div>;
+  return <div className="app-shell"><AppHeader user={session.user} onProfile={() => setProfileOpen(true)} /><main>{view === 'home' && <HomeView folders={folders} activity={activity} loading={loadingData} error={dataError} onOpenFolder={(folder) => { setSelectedFolder(folder); setView('files'); }} onRetry={loadData} />}{view === 'files' && <FilesView folders={folders} selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />}{view === 'activity' && <ActivityView activity={activity} folders={folders} loading={loadingData} error={dataError} onRetry={loadData} />}{view === 'settings' && <SettingsView user={session.user} onSignOut={signOut} />}</main><BottomNav activeView={view} onChange={setView} />{profileOpen && <ProfilePanel user={session.user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />}</div>;
 }
