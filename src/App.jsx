@@ -6,7 +6,7 @@ const iconPaths = {
   home: 'M3 10.5 12 3l9 7.5v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z',
   files: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H10l2 2h5.5A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-11Z',
   activity: 'M4 12h3l2-7 4 14 2-7h5',
-  settings: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0-6v2m0 15v2M3.5 12h2m13 0h2M5.99 5.99l1.42 1.42m9.18 9.18 1.42 1.42m0-12.02-1.42 1.42m-9.18 9.18-1.42 1.42',
+  settings: 'M9.7 2h4.6l.7 2.6c.6.2 1.2.5 1.7.9l2.6-.8 2.3 4-1.9 1.9a8 8 0 0 1 0 2.1l1.9 1.9-2.3 4-2.6-.8c-.5.4-1.1.7-1.7.9l-.7 2.6H9.7L9 18.7c-.6-.2-1.2-.5-1.7-.9l-2.6.8-2.3-4 1.9-1.9a8 8 0 0 1 0-2.1L2.4 8.7l2.3-4 2.6.8c.5-.4 1.1-.7 1.7-.9L9.7 2Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
   arrow: 'M5 12h13m-6-6 6 6-6 6',
   chevron: 'm9 18 6-6-6-6',
   shield: 'M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z',
@@ -97,7 +97,7 @@ function AuthScreen({ onAuthenticated }) {
       <button className="primary-button wide" disabled={busy}>{busy ? 'Connecting…' : mode === 'login' ? 'Sign in' : 'Create account'} <Icon name="arrow" size={18} /></button>
       <button type="button" className="text-button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'New here? Create an account' : 'Already have an account? Sign in'}</button>
     </form>
-    <p className="auth-endpoint">Connected to <strong>{API_URL}</strong></p>
+    <p className="auth-endpoint">API endpoint: <strong>{API_URL || 'same origin (configure VITE_API_URL for a separate API)'}</strong></p>
   </div>;
 }
 
@@ -155,7 +155,7 @@ function ActivityView({ activity, folders, loading, error, onRetry }) {
 function SettingsView({ user, onSignOut }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloud-backup-theme') || 'light');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('cloud-backup-theme', theme); }, [theme]);
-  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Account changes, automatic backups, and local restore are not part of this read-only PWA phase.</p></div>;
+  return <div className="view"><div className="page-heading compact"><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="settings" size={18} /></span><div><h2>Appearance</h2><p>Choose how Cloud Backup feels on your device.</p></div></div><div className="segmented"><button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>Light</button><button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button></div></section><section className="settings-card"><div className="settings-card-heading"><span className="settings-icon"><Icon name="shield" size={18} /></span><div><h2>Connection</h2><p>Requests use secure browser cookies and the configured API server.</p></div></div><div className="connection-row"><span>API server</span><strong>{API_URL || 'Same origin (configure VITE_API_URL for a separate API)'}</strong></div></section><section className="settings-card"><div className="settings-card-heading"><span className="avatar large">{(user?.email || 'U').slice(0, 1).toUpperCase()}</span><div><h2>Account</h2><p>{user?.email || 'Signed-in user'}</p></div></div><button className="secondary-button wide" onClick={onSignOut}><Icon name="logout" size={17} /> Sign out</button></section><p className="deferred-note">Email and password changes require account-management endpoints on the API server.</p></div>;
 }
 
 function ProfilePanel({ user, onClose, onSignOut }) {
